@@ -1,0 +1,164 @@
+# ─────────────────────────────────────────────────────────────
+# HZL Cluster Config  v2
+# Single source of truth. Everything else reads from here.
+# ─────────────────────────────────────────────────────────────
+
+schema_version: 2
+
+cluster:
+  name: HZL
+  core_node: hazel-core
+  environment: production     # production | development
+
+# ── Node definitions ──────────────────────────────────────────
+# ip: null means auto-discovered via UDP beacon
+# capabilities must match routing.task_map capability keys
+
+nodes:
+  hazel-core:
+    role: core
+    ip: null
+    port: 8765                 # WebSocket (Hazel frontend)
+    orchestrator_port: 9000    # Internal REST API
+    capabilities:
+      - orchestrator
+      - voice
+      - ui
+      - search
+      - home_control
+      - memory
+
+  hazel-worker-01:
+    role: worker
+    ip: null
+    port: 8766
+    orchestrator_port: 9001
+    capabilities:
+      - inference
+      - reasoning
+
+  hazel-worker-02:
+    role: worker
+    ip: null
+    port: 8767
+    orchestrator_port: 9002
+    capabilities:
+      - inference
+      - reasoning
+
+# ── Routing ───────────────────────────────────────────────────
+# preferred_node: exact hostname | any_worker | any_node
+# capability:     required capability on the target node
+#                 null means no capability requirement
+
+routing:
+  task_map:
+    voice_response:
+      model: claude-haiku-4-5-20251001
+      preferred_node: hazel-core
+      capability: voice
+      max_tokens: 500
+      timeout: 8
+
+    reasoning:
+      model: claude-sonnet-4-6
+      preferred_node: any_worker
+      capability: reasoning
+      max_tokens: 2000
+      timeout: 30
+
+    search:
+      model: claude-haiku-4-5-20251001
+      preferred_node: hazel-core
+      capability: search
+      tools: [tavily]
+      max_tokens: 800
+      timeout: 15
+
+    home_control:
+      model: claude-haiku-4-5-20251001
+      preferred_node: hazel-core
+      capability: home_control
+      max_tokens: 200
+      timeout: 5
+
+    memory_write:
+      model: claude-haiku-4-5-20251001
+      preferred_node: hazel-core
+      capability: memory
+      max_tokens: 300
+      timeout: 4
+
+    heavy_inference:
+      model: claude-sonnet-4-6
+      preferred_node: any_worker
+      capability: inference
+      max_tokens: 4000
+      timeout: 60
+
+  # Fallback order when preferred node is unavailable/unhealthy
+  fallback_chain:
+    - preferred_node
+    - any_capable_node
+    - core
+    - cloud_direct
+
+# ── Network discovery ─────────────────────────────────────────
+
+network:
+  discovery_port: 9099
+  broadcast_addr: "255.255.255.255"
+  heartbeat_interval: 5        # seconds between beacons
+  heartbeat_jitter: 1.0        # +/- random jitter to prevent thundering herd
+  node_timeout: 30             # declare dead after N seconds of silence
+  beacon_version: 2            # bump when beacon schema changes
+  max_beacon_bytes: 4096
+
+# ── Health thresholds ─────────────────────────────────────────
+
+thresholds:
+  cpu_overload: 85             # percent — above this, skip the node
+  memory_overload: 90
+  # Weighted score: (cpu * cpu_weight) + (memory * mem_weight)
+  # Lower score = healthier. Used for best-worker selection.
+  cpu_weight: 0.70
+  memory_weight: 0.30
+
+# ── Circuit breaker ───────────────────────────────────────────
+
+circuit_breaker:
+  failure_threshold: 4         # consecutive failures before opening
+  recovery_timeout: 45         # seconds before trying again (half-open)
+
+# ── Retry policy ─────────────────────────────────────────────
+
+retry:
+  orchestrator_max_attempts: 2
+  orchestrator_backoff_base: 0.5   # seconds
+  orchestrator_timeout: 2.0        # per attempt
+
+# ── Stats / metrics ───────────────────────────────────────────
+
+metrics:
+  latency_window: 100          # rolling window size for p50/p95/p99
+
+# ── Voice / AI ────────────────────────────────────────────────
+
+voice:
+  elevenlabs_voice_id: "Uc7anshoV8mdBhDnEZEX"
+  tts_model: "eleven_turbo_v2"
+
+# ── Paths (auto-resolved relative to this file on the Pi) ─────
+
+paths:
+  db: ./hazel.db
+  log_dir: ./logs
+  config: ./hzl_config.yaml
+
+# ── Logging ───────────────────────────────────────────────────
+
+logging:
+  level: INFO                  # DEBUG | INFO | WARNING | ERROR
+  format: json                 # json | text
+  # json -> structured logs for grep/jq/log aggregators
+  # text -> human-readable for local dev
