@@ -4,3 +4,5 @@ from hzl_cluster.fetchers.news_fetcher import fetch_news
 from hzl_cluster.fetchers.email_fetcher import fetch_email
 from hzl_cluster.fetchers.package_fetcher import fetch_packages
 from hzl_cluster.fetchers.map_fetcher import fetch_maps
+from hzl_cluster.fetchers.calendar_fetcher import fetch_calendar
+from hzl_cluster.fetchers.podcast_fetcher import fetch_podcasts
