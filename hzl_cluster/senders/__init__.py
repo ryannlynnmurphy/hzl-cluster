@@ -1,1 +1,2 @@
 from hzl_cluster.senders.email_sender import send_email
+from hzl_cluster.senders.signal_sender import send_signal_message
