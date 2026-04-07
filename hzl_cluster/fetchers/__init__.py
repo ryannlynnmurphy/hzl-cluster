@@ -7,3 +7,4 @@ from hzl_cluster.fetchers.map_fetcher import fetch_maps
 from hzl_cluster.fetchers.calendar_fetcher import fetch_calendar
 from hzl_cluster.fetchers.podcast_fetcher import fetch_podcasts
 from hzl_cluster.fetchers.contacts_fetcher import fetch_contacts
+from hzl_cluster.fetchers.url_fetcher import fetch_url
