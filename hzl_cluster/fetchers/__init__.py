@@ -2,3 +2,5 @@
 from hzl_cluster.fetchers.weather_fetcher import fetch_weather
 from hzl_cluster.fetchers.news_fetcher import fetch_news
 from hzl_cluster.fetchers.email_fetcher import fetch_email
+from hzl_cluster.fetchers.package_fetcher import fetch_packages
+from hzl_cluster.fetchers.map_fetcher import fetch_maps
