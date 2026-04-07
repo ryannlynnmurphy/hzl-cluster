@@ -21,6 +21,11 @@ from hzl_cluster.router import (
     classify_task,
 )
 from hzl_cluster.orchestrator import HZLOrchestrator
+from hzl_cluster.queue_hub import (
+    HazelMessage,
+    QueueDB,
+    QueueHub,
+)
 
 __version__ = "1.0.0"
 __all__ = [
@@ -35,4 +40,7 @@ __all__ = [
     "load_config",
     "get_local_ip",
     "classify_task",
+    "HazelMessage",
+    "QueueDB",
+    "QueueHub",
 ]

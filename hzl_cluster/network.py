@@ -138,7 +138,7 @@ class NodeEvent(Enum):
 class NodeInfo:
     hostname: str
     ip: str
-    role: str                    # "core" | "worker"
+    role: str                    # "core" | "worker" | "gateway" | "mobile"
     capabilities: List[str]
     port: int
     orchestrator_port: int
