@@ -108,6 +108,21 @@ class TaskMetrics:
 # ─────────────────────────────────────────────────────────────
 
 _TASK_PATTERNS: List[Tuple[str, List[Tuple[str, bool]]]] = [
+    ("gateway_sync", [
+        ("go online", True), ("sync now", True),
+        ("connect to the internet", True),
+        ("run a sync", True),
+    ]),
+    ("gateway_fetch", [
+        ("check my email", True), ("check email", True),
+        ("fetch my email", True), ("fetch email", True),
+        ("download", False),
+        ("get me the news", True), ("get the news", True),
+        ("update my weather", True), ("update weather", True),
+        ("update my forecast", True), ("update forecast", True),
+        ("update my maps", True), ("update maps", True),
+        ("sync with the internet", True),
+    ]),
     ("home_control", [
         ("turn on", True), ("turn off", True), ("dim the", True),
         ("switch on", True), ("switch off", True),
@@ -282,7 +297,7 @@ class HZLRouter:
         task_type = text_or_task if is_task_type else classify_task(text_or_task)
         task_cfg  = self.task_map.get(task_type, self.task_map.get(_DEFAULT_TASK, {}))
 
-        model      = task_cfg.get("model", "claude-haiku-4-5-20251001")
+        model      = task_cfg.get("model")  # Can be None for gateway tasks
         max_tokens = task_cfg.get("max_tokens", 500)
         timeout    = task_cfg.get("timeout", 10)
         preferred  = task_cfg.get("preferred_node", self.core_hostname)
