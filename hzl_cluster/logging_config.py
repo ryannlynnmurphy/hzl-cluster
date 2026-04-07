@@ -8,7 +8,7 @@ import json
 import logging
 import os
 import socket
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 class HazelFormatter(logging.Formatter):
@@ -21,7 +21,7 @@ class HazelFormatter(logging.Formatter):
             HazelFormatter._hostname = socket.gethostname()
 
         entry = {
-            "ts": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
+            "ts": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
             "level": record.levelname,
             "logger": record.name,
             "msg": record.getMessage(),
