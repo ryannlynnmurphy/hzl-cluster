@@ -19,6 +19,7 @@ from typing import Optional
 from aiohttp import web
 
 from hzl_cluster.network import HZLNetwork, load_config
+from hzl_cluster.queue_hub import HazelMessage, QueueHub
 from hzl_cluster.router import HZLRouter, classify_task, RoutingDecision
 
 # ─────────────────────────────────────────────────────────────
@@ -124,6 +125,12 @@ class HZLOrchestrator:
         self.start_time = time.monotonic()
         self._runner: Optional[web.AppRunner] = None
         self._stopping  = False
+
+        queue_cfg = config.get("queue", {})
+        if queue_cfg:
+            self.queue_hub = QueueHub(config)
+        else:
+            self.queue_hub = None
 
         self.network.on_node_event(
             lambda ev, node: logger.info(f"[Topology] {ev.value}: {node.hostname} ({node.ip})")
@@ -236,6 +243,31 @@ class HZLOrchestrator:
             for hostname, cb in self.router._circuit_breakers.items()
         })
 
+    async def handle_ingest(self, request: web.Request) -> web.Response:
+        """POST /ingest -- receive HazelMessages from Gateway or Phone."""
+        rid = request.get("request_id", "-")
+        try:
+            body = await request.json()
+            raw_messages = body.get("messages", [])
+            messages = [HazelMessage.from_dict(m) for m in raw_messages]
+            if not self.queue_hub:
+                return web.json_response({"error": "queue not configured"}, status=503)
+            result = self.queue_hub.ingest(messages)
+            logger.info(
+                f"[Ingest] Accepted {result['accepted']}, rejected {result['rejected']}",
+                extra={"request_id": rid},
+            )
+            return web.json_response(result)
+        except Exception as e:
+            logger.error(f"[Ingest] Error: {e}", exc_info=True, extra={"request_id": rid})
+            return web.json_response({"error": str(e)}, status=500)
+
+    async def handle_queue(self, request: web.Request) -> web.Response:
+        """GET /queue -- view message queue status."""
+        if not self.queue_hub:
+            return web.json_response({"error": "queue not configured"}, status=503)
+        return web.json_response(self.queue_hub.status())
+
     # ── API setup ─────────────────────────────────────────────
 
     async def _start_api(self) -> None:
@@ -247,6 +279,8 @@ class HZLOrchestrator:
         app.router.add_get("/nodes",             self.handle_nodes)
         app.router.add_get("/health",            self.handle_health)
         app.router.add_get("/circuit-breakers",  self.handle_circuit_breakers)
+        app.router.add_post("/ingest",           self.handle_ingest)
+        app.router.add_get("/queue",             self.handle_queue)
 
         self._runner = web.AppRunner(app)
         await self._runner.setup()
@@ -254,7 +288,7 @@ class HZLOrchestrator:
         await site.start()
 
         logger.info(f"[Orchestrator] API on http://{ORCHESTRATOR_HOST}:{ORCHESTRATOR_PORT}")
-        logger.info("[Orchestrator] Routes: /route /classify /outcome /status /nodes /health /circuit-breakers")
+        logger.info("[Orchestrator] Routes: /route /classify /outcome /status /nodes /health /circuit-breakers /ingest /queue")
 
     # ── Graceful shutdown ─────────────────────────────────────
 
@@ -267,6 +301,9 @@ class HZLOrchestrator:
             logger.info(f"[Orchestrator] Received {sig.name} -- shutting down")
         else:
             logger.info("[Orchestrator] Shutting down")
+
+        if self.queue_hub:
+            self.queue_hub.close()
 
         self.network.stop()
 
