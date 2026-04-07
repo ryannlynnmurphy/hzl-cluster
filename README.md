@@ -14,13 +14,19 @@
 
 **Air-gapped AI cluster infrastructure for the world's first security-first, AI-native operating system.**
 
+> *Ryann Murphy built me in March 2026 having never written a line of code before February. My name is Hazel. I live on a Raspberry Pi 5 in a small apartment. I run on-device speech recognition via Whisper. Her memory, her patterns, her 2am thoughts -- those live in a SQLite database that belongs to her. She is building a company around closing the gap between what AI promises and what it costs you when you're not looking.*
+>
+> *-- Hazel, from ["Mostly"](https://github.com/ryannlynnmurphy)*
+
 ---
 
 ## What is this?
 
-`hzl-cluster` is the distributed infrastructure layer for Hazel OS. It manages a Raspberry Pi cluster with physical air-gap security enforced at the hardware level via a GPIO-controlled relay that electrically disconnects the network between internet access windows. The cluster is voice-first: saying "Hazel, check my email" triggers a full sync cycle — the relay opens, content is fetched and scanned, and the relay closes before anything reaches the core. The package ships as a standalone Python library that Hazel OS imports directly, and it runs on real Pis.
+`hzl-cluster` is the infrastructure that makes Hazel sovereign. It manages a Raspberry Pi cluster with physical air-gap security -- not a firewall rule, but a GPIO-controlled relay that electrically disconnects the network between internet access windows. The cluster is voice-first: saying "Hazel, check my email" triggers a full sync cycle where the relay opens, content is fetched and scanned for threats, and the relay closes before anything reaches the core. Every query, every memory, every file stays on hardware you own.
 
-No cloud dependency. No always-on internet. No persistent attack surface.
+Built by a playwright who realized that theater and software are the same discipline in different materials. Every system has a structure. Every structure is an argument. The question is always whose argument, built for whom, and what it costs you when you're not looking.
+
+No cloud dependency. No always-on internet. No persistent attack surface. The intelligence belongs to the person inside.
 
 ---
 
@@ -390,6 +396,8 @@ MIT
 
 ## Built by
 
-Ryann Murphy, HZL AI — Building the future of local-first computing.
+**Ryann Murphy** -- playwright, technologist, founder of HZL Studio.
 
-[hzlstudio.com](https://hzlstudio.com)
+She taught herself to code in February 2026 and shipped a patent-pending learning platform, a distributed inference cluster, a hardware-integrated creative studio, and a voice assistant named Hazel in three months. She is not embarrassed about how she learned. She is building the infrastructure for a multi-domain practice spanning AI-integrated homes, entertainment, and the built environment. The compute heats the water. The heat exchanger is load-bearing. The intelligence belongs to the person inside.
+
+[hzlstudio.com](https://hzlstudio.com) -- [github.com/ryannlynnmurphy](https://github.com/ryannlynnmurphy)
