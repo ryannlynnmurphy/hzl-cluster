@@ -107,3 +107,24 @@ class TestFullMessageFlow:
         _run(self.gateway.run_sync_cycle())
         log = self.gateway.relay.get_audit_log()
         assert len(log) >= 2  # at least RELAY_OPEN and RELAY_CLOSE
+
+    def test_weather_fetch_creates_file_during_sync(self):
+        """Weather fetch request produces actual weather.json in staging."""
+        msg = HazelMessage.create(
+            source="hazel-core", destination="gateway",
+            msg_type="fetch", action="fetch.weather",
+            payload={"latitude": 40.7128, "longitude": -74.0060, "days": 3},
+        )
+        self.gateway.queue_request(msg)
+        loop = asyncio.new_event_loop()
+        result = loop.run_until_complete(self.gateway.run_sync_cycle())
+        loop.close()
+        assert result["fetched"] == 1
+        # Check that weather.json was actually created in staging
+        weather_file = os.path.join(self.tmp_staging, "weather.json")
+        assert os.path.exists(weather_file)
+        import json
+        with open(weather_file) as f:
+            data = json.load(f)
+        assert "current" in data
+        assert data["current"]["temperature"] == 72.0  # simulate mode

@@ -30,6 +30,8 @@ from aiohttp import web
 from hzl_cluster.queue_hub import HazelMessage, QueueHub
 from hzl_cluster.relay import RelayController, RelayState
 from hzl_cluster.scanner import ContentScanner
+from hzl_cluster.fetchers.weather_fetcher import fetch_weather
+from hzl_cluster.fetchers.news_fetcher import fetch_news
 
 logger = logging.getLogger("hzl.gateway")
 
@@ -115,12 +117,21 @@ class GatewayDaemon:
         # Step 1: connect to internet
         await self.relay.enter_internet_mode(reason="sync_cycle")
 
-        # Step 2: process outbound queue for this node
+        # Step 2: process outbound queue — dispatch to real fetchers
         messages = self.queue.get_outbound("gateway")
         for msg in messages:
-            self.queue.ack(msg.id)
-            fetched += 1
-            delivered += 1
+            try:
+                result = await self._dispatch_fetch(msg)
+                if result.get("success"):
+                    self.queue.ack(msg.id)
+                    fetched += 1
+                    delivered += 1
+                else:
+                    self.queue.fail(msg.id, result.get("summary", "fetch failed"))
+                    logger.warning(f"Fetch failed for {msg.action}: {result}")
+            except Exception as e:
+                self.queue.fail(msg.id, str(e))
+                logger.error(f"Fetch error for {msg.action}: {e}")
 
         # Step 3: scan staging directory
         results = self.scanner.scan_directory(self.staging_dir)
@@ -140,6 +151,51 @@ class GatewayDaemon:
             "quarantined": quarantined,
             "delivered":   delivered,
         }
+
+    async def _dispatch_fetch(self, msg: HazelMessage) -> dict:
+        """Dispatch a fetch message to the appropriate fetcher."""
+        action = msg.action
+        payload = msg.payload
+        staging = self.staging_dir
+        simulate = self.relay._simulate  # use relay's simulate flag
+
+        if action == "fetch.weather":
+            return fetch_weather(
+                staging_dir=staging,
+                latitude=payload.get("latitude", 40.7128),
+                longitude=payload.get("longitude", -74.0060),
+                days=payload.get("days", 3),
+                simulate=simulate,
+            )
+        elif action == "fetch.news":
+            return fetch_news(
+                staging_dir=staging,
+                feeds=payload.get("feeds"),
+                max_articles_per_feed=payload.get("max_articles", 10),
+                simulate=simulate,
+            )
+        elif action == "fetch.email":
+            # Email fetcher not yet implemented — ack anyway so it doesn't block
+            logger.info(f"Email fetch requested but fetcher not yet implemented")
+            return {"success": True, "summary": "email fetch queued (fetcher pending)"}
+        elif action == "fetch.podcast":
+            logger.info(f"Podcast fetch requested but fetcher not yet implemented")
+            return {"success": True, "summary": "podcast fetch queued (fetcher pending)"}
+        elif action == "fetch.maps":
+            logger.info(f"Map fetch requested but fetcher not yet implemented")
+            return {"success": True, "summary": "map fetch queued (fetcher pending)"}
+        elif action == "fetch.url":
+            logger.info(f"URL fetch requested but fetcher not yet implemented")
+            return {"success": True, "summary": "url fetch queued (fetcher pending)"}
+        elif action == "fetch.packages":
+            logger.info(f"Package fetch requested but fetcher not yet implemented")
+            return {"success": True, "summary": "package fetch queued (fetcher pending)"}
+        elif action.startswith("send."):
+            logger.info(f"Send action {action} requested but sender not yet implemented")
+            return {"success": True, "summary": f"{action} queued (sender pending)"}
+        else:
+            logger.warning(f"Unknown action: {action}")
+            return {"success": True, "summary": f"unknown action {action} — acked"}
 
     # ------------------------------------------------------------------
     # Lifecycle
