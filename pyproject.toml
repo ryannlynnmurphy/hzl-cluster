@@ -32,6 +32,7 @@ Repository = "https://github.com/ryannlynnmurphy/hzl-cluster"
 
 [project.optional-dependencies]
 dev = ["pytest", "pytest-asyncio"]
+gateway = ["gpiozero>=2.0"]
 
 [tool.setuptools.packages.find]
 include = ["hzl_cluster*"]

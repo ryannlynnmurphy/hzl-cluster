@@ -46,6 +46,36 @@ nodes:
       - inference
       - reasoning
 
+  hazel-gateway:
+    role: gateway
+    ip: null
+    port: 9010
+    orchestrator_port: null
+    capabilities:
+      - gateway
+      - fetch
+      - scan
+      - relay_control
+
+  hazel-phone:
+    role: mobile
+    ip: null
+    port: 8770
+    orchestrator_port: null
+    capabilities:
+      - voice
+      - camera
+      - location
+      - queue
+    local_model:
+      name: phi-3-mini
+      max_tokens: 1000
+      timeout: 15
+    sync:
+      auto_sync_on_connect: true
+      sync_interval: 300
+      max_queue_size: 500
+
 # ── Routing ───────────────────────────────────────────────────
 # preferred_node: exact hostname | any_worker | any_node
 # capability:     required capability on the target node
@@ -94,6 +124,27 @@ routing:
       preferred_node: any_worker
       capability: inference
       max_tokens: 4000
+      timeout: 60
+
+    gateway_fetch:
+      model: null
+      preferred_node: hazel-gateway
+      capability: fetch
+      max_tokens: 0
+      timeout: 5
+
+    gateway_sync:
+      model: null
+      preferred_node: hazel-gateway
+      capability: relay_control
+      max_tokens: 0
+      timeout: 300
+
+    phone_sync:
+      model: null
+      preferred_node: hazel-phone
+      capability: queue
+      max_tokens: 0
       timeout: 60
 
   # Fallback order when preferred node is unavailable/unhealthy
@@ -162,3 +213,29 @@ logging:
   format: json                 # json | text
   # json -> structured logs for grep/jq/log aggregators
   # text -> human-readable for local dev
+
+relay:
+  gpio_pin: 17
+  max_internet_duration: 600
+  watchdog_interval: 30
+  boot_state: core_connected
+  wifi_ssid: "your-home-internet-ssid"
+  wifi_password_file: /etc/hazel/wifi.secret
+  wifi_interface: wlan0
+  ethernet_interface: eth0
+  watchdog_policy: finish_active
+
+sync:
+  schedule: "0 6 * * *"
+  max_batch_size: 50
+  content_scan: true
+  staging_dir: /var/hazel/staging
+  quarantine_dir: /var/hazel/quarantine
+  max_staging_size_mb: 500
+
+queue:
+  db_path: /var/hazel/queue.db
+  max_retries: 3
+  retry_backoff_base: 2.0
+  default_ttl: 86400
+  ack_timeout: 30
