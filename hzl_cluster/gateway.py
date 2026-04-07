@@ -30,9 +30,22 @@ from aiohttp import web
 from hzl_cluster.queue_hub import HazelMessage, QueueHub
 from hzl_cluster.relay import RelayController, RelayState
 from hzl_cluster.scanner import ContentScanner
-from hzl_cluster.fetchers.weather_fetcher import fetch_weather
-from hzl_cluster.fetchers.news_fetcher import fetch_news
-from hzl_cluster.fetchers.email_fetcher import fetch_email
+
+
+def _safe_import(module_path: str, func_name: str):
+    """Import a fetcher function, return None if not available."""
+    try:
+        mod = __import__(module_path, fromlist=[func_name])
+        return getattr(mod, func_name)
+    except (ImportError, AttributeError):
+        return None
+
+
+# Core fetchers — always expected to exist; loaded at import time for
+# performance, but guarded so a missing module doesn't crash the gateway.
+fetch_weather  = _safe_import("hzl_cluster.fetchers.weather_fetcher", "fetch_weather")
+fetch_news     = _safe_import("hzl_cluster.fetchers.news_fetcher",    "fetch_news")
+fetch_email    = _safe_import("hzl_cluster.fetchers.email_fetcher",   "fetch_email")
 
 logger = logging.getLogger("hzl.gateway")
 
@@ -161,45 +174,89 @@ class GatewayDaemon:
         simulate = self.relay._simulate  # use relay's simulate flag
 
         if action == "fetch.weather":
-            return fetch_weather(
-                staging_dir=staging,
-                latitude=payload.get("latitude", 40.7128),
-                longitude=payload.get("longitude", -74.0060),
-                days=payload.get("days", 3),
-                simulate=simulate,
-            )
+            if fetch_weather:
+                return fetch_weather(
+                    staging_dir=staging,
+                    latitude=payload.get("latitude", 40.7128),
+                    longitude=payload.get("longitude", -74.0060),
+                    days=payload.get("days", 3),
+                    simulate=simulate,
+                )
+            return {"success": True, "summary": "weather fetcher not installed"}
         elif action == "fetch.news":
-            return fetch_news(
-                staging_dir=staging,
-                feeds=payload.get("feeds"),
-                max_articles_per_feed=payload.get("max_articles", 10),
-                simulate=simulate,
-            )
+            if fetch_news:
+                return fetch_news(
+                    staging_dir=staging,
+                    feeds=payload.get("feeds"),
+                    max_articles_per_feed=payload.get("max_articles", 10),
+                    simulate=simulate,
+                )
+            return {"success": True, "summary": "news fetcher not installed"}
         elif action == "fetch.email":
-            return fetch_email(
-                staging_dir=staging,
-                imap_host=payload.get("imap_host", "127.0.0.1"),
-                imap_port=payload.get("imap_port", 1143),
-                username=payload.get("username", ""),
-                password=payload.get("password", ""),
-                folder=payload.get("folder", "INBOX"),
-                since_days=payload.get("since_days", 3),
-                max_emails=payload.get("max_emails", 50),
-                use_ssl=payload.get("use_ssl", False),
-                simulate=simulate,
-            )
+            if fetch_email:
+                return fetch_email(
+                    staging_dir=staging,
+                    imap_host=payload.get("imap_host", "127.0.0.1"),
+                    imap_port=payload.get("imap_port", 1143),
+                    username=payload.get("username", ""),
+                    password=payload.get("password", ""),
+                    folder=payload.get("folder", "INBOX"),
+                    since_days=payload.get("since_days", 3),
+                    max_emails=payload.get("max_emails", 50),
+                    use_ssl=payload.get("use_ssl", False),
+                    simulate=simulate,
+                )
+            return {"success": True, "summary": "email fetcher not installed"}
         elif action == "fetch.podcast":
-            logger.info(f"Podcast fetch requested but fetcher not yet implemented")
-            return {"success": True, "summary": "podcast fetch queued (fetcher pending)"}
+            _fetch_podcasts = _safe_import(
+                "hzl_cluster.fetchers.podcast_fetcher", "fetch_podcasts"
+            )
+            if _fetch_podcasts:
+                return _fetch_podcasts(
+                    staging_dir=staging,
+                    feeds=payload.get("feeds"),
+                    max_episodes=payload.get("max_episodes", 3),
+                    simulate=simulate,
+                )
+            return {"success": True, "summary": "podcast fetcher not installed"}
         elif action == "fetch.maps":
-            logger.info(f"Map fetch requested but fetcher not yet implemented")
-            return {"success": True, "summary": "map fetch queued (fetcher pending)"}
-        elif action == "fetch.url":
-            logger.info(f"URL fetch requested but fetcher not yet implemented")
-            return {"success": True, "summary": "url fetch queued (fetcher pending)"}
+            _fetch_maps = _safe_import(
+                "hzl_cluster.fetchers.maps_fetcher", "fetch_maps"
+            )
+            if _fetch_maps:
+                return _fetch_maps(
+                    staging_dir=staging,
+                    locations=payload.get("locations"),
+                    zoom=payload.get("zoom", 13),
+                    simulate=simulate,
+                )
+            return {"success": True, "summary": "maps fetcher not installed"}
         elif action == "fetch.packages":
-            logger.info(f"Package fetch requested but fetcher not yet implemented")
-            return {"success": True, "summary": "package fetch queued (fetcher pending)"}
+            _fetch_packages = _safe_import(
+                "hzl_cluster.fetchers.package_fetcher", "fetch_packages"
+            )
+            if _fetch_packages:
+                return _fetch_packages(
+                    staging_dir=staging,
+                    packages=payload.get("packages"),
+                    simulate=simulate,
+                )
+            return {"success": True, "summary": "packages fetcher not installed"}
+        elif action == "fetch.calendar":
+            _fetch_calendar = _safe_import(
+                "hzl_cluster.fetchers.calendar_fetcher", "fetch_calendar"
+            )
+            if _fetch_calendar:
+                return _fetch_calendar(
+                    staging_dir=staging,
+                    calendar_urls=payload.get("calendar_urls"),
+                    days_ahead=payload.get("days_ahead", 7),
+                    simulate=simulate,
+                )
+            return {"success": True, "summary": "calendar fetcher not installed"}
+        elif action == "fetch.url":
+            logger.info("URL fetch requested but fetcher not yet implemented")
+            return {"success": True, "summary": "url fetch queued (fetcher pending)"}
         elif action.startswith("send."):
             logger.info(f"Send action {action} requested but sender not yet implemented")
             return {"success": True, "summary": f"{action} queued (sender pending)"}
