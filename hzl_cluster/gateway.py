@@ -32,6 +32,7 @@ from hzl_cluster.relay import RelayController, RelayState
 from hzl_cluster.scanner import ContentScanner
 from hzl_cluster.fetchers.weather_fetcher import fetch_weather
 from hzl_cluster.fetchers.news_fetcher import fetch_news
+from hzl_cluster.fetchers.email_fetcher import fetch_email
 
 logger = logging.getLogger("hzl.gateway")
 
@@ -175,9 +176,18 @@ class GatewayDaemon:
                 simulate=simulate,
             )
         elif action == "fetch.email":
-            # Email fetcher not yet implemented — ack anyway so it doesn't block
-            logger.info(f"Email fetch requested but fetcher not yet implemented")
-            return {"success": True, "summary": "email fetch queued (fetcher pending)"}
+            return fetch_email(
+                staging_dir=staging,
+                imap_host=payload.get("imap_host", "127.0.0.1"),
+                imap_port=payload.get("imap_port", 1143),
+                username=payload.get("username", ""),
+                password=payload.get("password", ""),
+                folder=payload.get("folder", "INBOX"),
+                since_days=payload.get("since_days", 3),
+                max_emails=payload.get("max_emails", 50),
+                use_ssl=payload.get("use_ssl", False),
+                simulate=simulate,
+            )
         elif action == "fetch.podcast":
             logger.info(f"Podcast fetch requested but fetcher not yet implemented")
             return {"success": True, "summary": "podcast fetch queued (fetcher pending)"}
