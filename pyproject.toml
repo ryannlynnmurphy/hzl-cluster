@@ -26,6 +26,9 @@ dependencies = [
     "pyyaml>=6.0",
 ]
 
+[project.scripts]
+hazel = "hzl_cluster.cli:main"
+
 [project.urls]
 Homepage = "https://github.com/ryannlynnmurphy/hzl-cluster"
 Repository = "https://github.com/ryannlynnmurphy/hzl-cluster"
